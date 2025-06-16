@@ -1,4 +1,5 @@
-import { Myna, toMnast, MnastNode } from "../src";
+import { toMnast, MnastNode } from "myna-parser-mnast";
+import { Myna } from "../src";
 import { createHtmlReservedCharsGrammar } from "../grammars/grammar_html_reserved_chars";
 import { visit } from "unist-util-visit";
 

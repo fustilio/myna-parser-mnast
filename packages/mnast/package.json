@@ -1,12 +1,15 @@
 {
   "name": "myna-parser-mnast",
-  "version": "1.0.0",
+  "version": "0.0.2",
   "description": "Myna parser with Unist compatibility",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "dist/index.mjs",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "default": "./src/index.ts"
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     }
   },
   "scripts": {
@@ -15,7 +18,9 @@
     "test": "vitest run",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "bench": "vitest bench"
+    "bench": "vitest bench",
+    "publish-packages": "pnpm run build && changeset version && changeset publish",
+    "unpublish-packages": "pnpm unpublish myna-parser-mnast@0.0.0"
   },
   "files": [
     "dist"
@@ -34,16 +39,19 @@
     "@typescript-eslint/eslint-plugin": "^7.1.0",
     "@typescript-eslint/parser": "^7.1.0",
     "eslint": "^8.57.0",
+    "myna-parser-ts": "workspace:*",
     "typescript": "^5.3.3",
     "vite": "^5.1.4",
     "vite-plugin-dts": "^3.7.3",
     "vitest": "^1.3.1",
-    "myna-parser-ts": "workspace:*"
+    "@changesets/cli": "^2.27.7"
   },
   "dependencies": {
     "unist-builder": "^4.0.0",
     "unist-util-is": "^6.0.0",
-    "unist-util-visit": "^5.0.0",
-    "unist-util-visit-parents": "^6.0.0"
+    "unist-util-visit": "^5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

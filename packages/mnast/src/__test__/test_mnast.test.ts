@@ -8,7 +8,7 @@ describe("Mnast Conversion", () => {
     input: 'a,1,"hello"\nb,2,"goodbye"',
     start: 0,
     end: 1,
-    children: null,
+    children: null as null | any[],
     allText: "a",
     fullName: "csv.field",
     get isLeaf() {

@@ -1,5 +1,7 @@
 # [Myna Parsing Library](https://cdiggins.github.io/myna-parser)
 
+**Note:** This package, `myna-parser-ts`, includes a rewrite of the tests for the Myna parser. However, the core `myna.ts` remains the same as the original by Christopher Diggins. The new tests are for improved testing and maintainability, but do not alter the core parsing logic.
+
 [![npm version](https://badge.fury.io/js/myna-parser.svg)](https://badge.fury.io/js/myna-parser) 
 [![Build Status](https://travis-ci.org/cdiggins/myna-parser.svg?branch=master)](https://travis-ci.org/cdiggins/myna-parser)
 

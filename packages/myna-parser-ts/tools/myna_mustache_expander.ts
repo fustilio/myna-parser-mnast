@@ -1,4 +1,5 @@
-import { Myna, toMnast, MnastNode } from "../src";
+import { toMnast, MnastNode } from "myna-parser-mnast";
+import { Myna } from "../src";
 import { createMustacheGrammar } from "../grammars/grammar_mustache";
 import { escapeHtmlChars } from "./myna_escape_html_chars";
 

@@ -1,63 +1,104 @@
-# Myna Mnast Conversion
+# myna-parser-mnast
 
-This module provides functionality to convert Myna's Abstract Syntax Tree (AST) and Concrete Syntax Tree (CST) to be compatible with the [Unist](https://github.com/syntax-tree/unist) specification. We call this format **mnast** (Myna Abstract Syntax Tree).
+**Unist compatibility for Myna parser AST/CST**
+
+This package provides conversion utilities to transform [Myna parser](https://github.com/cdiggins/myna-parser) AST/CST nodes into [Unist](https://github.com/syntax-tree/unist)-compatible nodes (mnast), and back. It is designed for use in the JavaScript/TypeScript ecosystem where Unist is a common interface for syntax trees.
+
+## About
+
+- **myna-parser-mnast** is an extension for Unist compatibility, built on top of the original [Myna parser](https://github.com/cdiggins/myna-parser) by Christopher Diggins.
+- This package is maintained by Francis Lee and contributors.
+- The original Myna parser is MIT licensed (see License section below).
+
+**Note:** There is also a related package, `myna-parser-ts` (currently unpublished), which includes a rewrite of the tests for the Myna parser. However, the core `myna.ts` remains the same as the original by Christopher Diggins. This is for improved testing and maintainability, but does not alter the core parsing logic.
 
 ## Installation
 
 ```bash
-npm install myna-parser
+npm install myna-parser-mnast
 ```
 
 ## Usage
 
 ```typescript
-import { toMnast, fromMnast } from 'myna-parser';
+import { toMnast, fromMnast } from 'myna-parser-mnast';
 
-// Example Myna AST node (you would get this from Myna.parse)
-const mynaNode = {
-    rule: { name: 'field' },
-    input: 'a,1,"hello"',
-    start: 0,
-    end: 1,
-    children: null,
-    allText: 'a',
-    isLeaf: true,
-    fullName: 'csv.field'
-};
-
-// Convert a Myna AST node to a mnast node
+// Example: Convert a Myna AST node to a mnast node
 const mnastNode = toMnast(mynaNode);
 
 // Convert a mnast node back to a Myna node
 const mynaNodeAgain = fromMnast(mnastNode);
-
-// With options
-const mnastNodeWithOptions = toMnast(mynaNode, {
-    includePosition: true,    // Include position information
-    includeMynaData: true,    // Include original Myna data
-    typeMapper: (node) => `custom_${node.rule.name}`  // Custom type mapping
-});
 ```
+
+See the API section for more details.
 
 ## API
 
 ### `toMnast(node: any, options?: MnastConversionOptions): MnastNode`
-
-Converts a Myna AST node to a mnast node.
-
-#### Options
-
-- `includePosition` (boolean, default: true): Whether to include position information
-- `includeMynaData` (boolean, default: true): Whether to include original Myna data
-- `typeMapper` (function): Custom function to map node types
+Converts a Myna AST node to a mnast (Unist-compatible) node.
 
 ### `fromMnast(node: MnastNode): any`
-
 Converts a mnast node back to a Myna AST node.
 
-## Types
+### Types
+See [src/types.ts](./src/types.ts) for full type definitions.
 
-### `MnastNode`
+## License
+
+### myna-parser-mnast
+
+MIT License
+
+Copyright (c) 2024 Francis Lee
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+### Original Myna Parser
+
+This package is based on the original [Myna parser](https://github.com/cdiggins/myna-parser) by Christopher Diggins, which is also licensed under the MIT License:
+
+> MIT License
+>
+> Copyright (c) 2017 Christopher Diggins
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files (the "Software"), to deal
+> in the Software without restriction, including without limitation the rights
+> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+> copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all
+> copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+> SOFTWARE.
+
+## Authors
+
+- **Francis Lee** – Unist compatibility, mnast, and refactoring
+- **Christopher Diggins** – Original Myna parser
 
 ```typescript
 interface MnastNode {

@@ -1,4 +1,5 @@
-import { Myna, toMnast, MnastNode } from "../src/index.js";
+import { toMnast, MnastNode } from "myna-parser-mnast";
+import { Myna } from "../src";
 import { createMarkdownGrammar } from "../grammars/grammar_markdown.js";
 
 // Create the markdown grammar

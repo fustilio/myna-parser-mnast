@@ -1,9 +1,10 @@
 {
   "name": "myna-parser-ts",
   "version": "1.0.0",
-  "description": "Myna parser with modern TypeScript support",
+  "description": "Myna parser with modern TypeScript support (not published to npm, for local/testing use only)",
   "type": "module",
   "main": "src/index.ts",
+  "private": true,
   "exports": {
     ".": {
       "default": "./src/index.ts"
