@@ -86,9 +86,10 @@ You can show your support by reporting issues, making suggestions, contributing 
 
 Letting me know how you use Myna, or why you decided against it would also be helpful, as would sharing your grammars with us!           
 
-# Author 
+# Authors 
 
-[Christopher Diggins](https://github.com/cdiggins)
+*   **Christopher Diggins** - Original author of the Myna Parsing Library.
+*   **Francis Lee** - Added `mnast` (Unist compatibility) support and refactored the tools.
 
 # License
 

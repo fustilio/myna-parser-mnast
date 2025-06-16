@@ -1,4 +1,4 @@
-import { Myna } from "../src";
+import { Myna, toMnast, MnastNode } from "../src";
 import { createMustacheGrammar } from "../grammars/grammar_mustache";
 import { escapeHtmlChars } from "./myna_escape_html_chars";
 
@@ -15,43 +15,50 @@ function mergeObjects<T extends object>(a: T, b: T): T {
   return r;
 }
 
-// Given an AST node, a data object, and an optional string, expands the nodes and returns the result as a string.
-function expandAst(ast: any, data: any): string {
-  const keyNode = ast.child("key");
-  const key = keyNode ? keyNode.allText : "";
-  let val = data ? (key in data ? data[key] : "") : "";
+// Given a mnast node, a data object, and an optional string, expands the nodes and returns the result as a string.
+function expandMnast(node: MnastNode, data: any): string {
+  if (!node) return "";
+
+  const keyNode = node.children?.find(c => c.type === 'key');
+  const key = keyNode ? keyNode.value : '';
+  let val = data && key in data ? data[key] : "";
 
   if (typeof val === "function") throw new Error("Functions are not supported");
 
-  switch (ast.rule.name) {
+  switch (node.type) {
+    case "seq":
+    case "choice":
     case "document":
     case "sectionContent":
-      return ast.children.map((c: any) => expandAst(c, data)).join("");
+    case "content":
+    case "guardedSeq":
+    case "advanceOneOrMoreWhileNot":
+      return node.children?.map((c: MnastNode) => expandMnast(c, data)).join("") || "";
     case "comment":
       return "";
     case "plainText":
-      // Preserve all whitespace, including leading spaces
-      return ast.allText;
-    case "section":
-      const content = ast.child("sectionContent");
-      if (
-        typeof val === "boolean" ||
-        typeof val === "number" ||
-        typeof val === "string"
-      ) {
-        if (val) return expandAst(content, data);
-        else return "";
+      return node.value || "";
+    case "section": {
+      const content = node.children?.find(c => c.type === 'sectionContent');
+      if (!content) return "";
+      if (typeof val === "boolean" || typeof val === "number" || typeof val === "string") {
+        return val ? expandMnast(content, data) : "";
       } else if (Array.isArray(val)) {
-        return val
-          .map((x) => expandAst(content, mergeObjects(data, x)))
-          .join("");
-      } else {
-        return expandAst(content, mergeObjects(data, val));
+        return val.map((x) => expandMnast(content, mergeObjects(data, x))).join("");
+      } else if (val && typeof val === 'object') {
+        return expandMnast(content, mergeObjects(data, val));
       }
-    case "invertedSection":
-      if (!val || (Array.isArray(val) && val.length === 0))
-        return expandAst(ast.child("sectionContent"), data);
+      // Handles cases where val is falsy but not an empty array (e.g. null, undefined)
       return "";
+    }
+    case "invertedSection": {
+      const content = node.children?.find(c => c.type === 'sectionContent');
+      if (!content) return "";
+      if (!val || (Array.isArray(val) && val.length === 0)) {
+        return expandMnast(content, data);
+      }
+      return "";
+    }
     case "escapedVar":
       if (val) {
         let strVal = String(val);
@@ -72,15 +79,20 @@ function expandAst(ast: any, data: any): string {
         return strVal;
       }
       return "";
+    case "key":
+        // Keys are handled by their parents, return empty string
+        return "";
   }
-  throw new Error(`Unrecognized AST node ${ast.rule.name}`);
+  throw new Error(`Unrecognized mnast node ${node.type}`);
 }
 
 // Expands text containing CTemplate delimiters "{{" using the data object
 export function expand(template: string, data: any): string {
   if (template.indexOf("{{") >= 0) {
     const ast = Myna.parsers.mustache(template);
-    let result = expandAst(ast, data);
+    if (!ast) return template;
+    const mnastTree = toMnast(ast);
+    let result = expandMnast(mnastTree, data);
     if (result.endsWith("\n")) {
       result = result.slice(0, -1);
     }

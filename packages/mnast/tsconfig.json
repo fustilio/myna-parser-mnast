@@ -17,6 +17,6 @@
 		"noFallthroughCasesInSwitch": true,
 		"types": ["node", "vitest/globals"]
 	},
-	"include": ["src/**/*", "tools/**/*", "grammars/**/*", "src/myna.ts"],
-	"exclude": ["node_modules", "dist", "tests"]
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist", "./tests"]
 }

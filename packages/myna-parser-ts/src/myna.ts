@@ -1,5 +1,6 @@
 // Myna Parsing Library
 // Copyright (c) 2016 Christopher Diggins
+// mnast (Unist compatibility) modifications Copyright (c) 2024 Francis Lee
 // Usage permitted under terms of MIT License
 
 // A parsing combinator library for JavaScript/TypeScript based on the PEG formalism.

@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import fs from "fs";
 import { Myna } from "../src";
 import { mdToHtml } from "../tools/myna_markdown_to_html.ts";
-import { createMarkdownGrammar } from "../grammars/grammar_markdown";
+import { createMarkdownGrammar } from "../grammars/grammar_markdown.ts";
 
 // Register the grammar
 const markdownGrammar = createMarkdownGrammar(Myna);
