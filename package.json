@@ -1,34 +1,53 @@
 {
-  "name": "myna-parser",
-  "version": "2.5.1",
-  "description": "A text parsing (syntactic analysis) library written in TypeScript.",
-  "main": "myna.js",
-  "homepage": "https://cdiggins.github.io/myna-parser",
-  "bugs": "https://github.com/cdiggins/myna-parser/issues",
-  "license": "MIT",
-  "author": {
-    "name": "Christopher Diggins",
-    "email": "cdiggins@gmail.com"
+  "name": "myna-parser-unist",
+  "version": "1.0.0",
+  "description": "Myna parser with Unist compatibility",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/cdiggins/myna-parser.git"
-  },
-  "runkitExampleFilename": "tests/test_node_example-1.js",
   "scripts": {
-    "build": "tsc",
-    "test": "mocha tests/mocha_runner.js",
-    "testBrowser": ".\\tests\\qunit.html",
-    "testTools": "node .\\tests\\test_all_tools",
-    "makesite": "node tools/myna_build_site.js",
-    "makedist": "uglifyjs myna.js -o dist/myna.min.js",
-    "copyfiles": "cpx {myna.ts,myna.js,examples/*.*,tests/*.*,grammars/*.js} docs",
-    "full": "npm run build && npm test && npm run testBrowser && npm run makesite && npm run copyfiles && npm run makedist"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "test": "vitest run",
+    "auto-test": "pnpm test pithy",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "bench": "vitest bench"
   },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "myna",
+    "parser",
+    "unist",
+    "ast",
+    "cst"
+  ],
+  "author": "",
+  "license": "MIT",
   "devDependencies": {
-    "cpx": "~1.5",
-    "mocha": "~6.1",
-    "typescript": "~3.5",
-    "uglify-js": "~3.6"
+    "@types/node": "^20.11.24",
+    "@typescript-eslint/eslint-plugin": "^7.1.0",
+    "@typescript-eslint/parser": "^7.1.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.4",
+    "vite-plugin-dts": "^3.7.3",
+    "vitest": "^1.3.1"
+  },
+  "dependencies": {
+    "unist-builder": "^4.0.0",
+    "unist-util-is": "^6.0.0",
+    "unist-util-visit": "^5.0.0",
+    "unist-util-visit-parents": "^6.0.0"
   }
 }

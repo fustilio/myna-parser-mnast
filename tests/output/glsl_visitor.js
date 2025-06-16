@@ -4,7 +4,7 @@ var glslVisitor = new function()
     this['visit_' + child.name](child, state);
   }
   this.visitChildren = function(ast, state) {
-    for (var child ofd ast.children)
+    for (var child of ast.children)
       this.visitNode(child, state);
   }
   this.visit_additiveExpr = function(ast, stack, state) {

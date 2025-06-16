@@ -6,7 +6,7 @@
 
 <p>Myna is an efficient and easy to use parsing library for JavaScript written using <a href = "https://www.typescriptlang.org/">TypeScript 2.0</a> which targets <a href = "https://www.ecma-international.org/ecma-262/5.1/">ECMAScript 5.1</a>. </p>
 
-<p>Unlike several popular parsing libraries (e.g. <a href = "http://jison.org/">Jison</a>, <a href = "https://pegjs.org/">PEG.js</a>, <a href = "http://nearley.js.org/">nearley</a>, and <a href = "http://www.antlr.org/">ANTLR</a>) Myna is an API, not a code generation tool, which makes it easier for programmers to write, debug, and maintain their parsing algorithms. This makes Myna closest to <a href = "https://github.com/jneen/parsimmon">Parsimmon</a> and <a href = "https://github.com/SAP/chevrotain">Chevrotain</a>. Myna has no dependencies, you can just download myna.js and start using it immediately.</p>
+<p>Unlike several popular parsing libraries (e.g. <a href = "http://jison.org/">Jison</a>, <a href = "https://pegjs.org/">PEG.js</a>, <a href = "http://nearley.js.org/">nearley</a>, and <a href = "http://www.antlr.org/">ANTLR</a>) Myna is an API, not a code generation tool, which makes it easier for programmers to write, debug, and maintain their parsing algorithms. This makes Myna closest to <a href = "https://github.com/jneen/parsimmon">Parsimmon</a> and <a href = "https://github.com/SAP/chevrotain">Chevrotain</a>. Myna has no dependencies, you can just download <code>myna.js</code> and start using it immediately.</p>
 
 <p>There are several <a href = "https://github.com/cdiggins/myna-parser/tree/master/tools">example tools</a> that demonstrate how to use Myna parsers and a number of <a href = "https://github.com/cdiggins/myna-parser/tree/master/grammars">sample grammars</a> shipped with Myna that you can use or modify as needed. </p>
 
@@ -54,9 +54,19 @@
 
 <p>The <code>myna.js</code> library is generated from the <code>myna.ts</code> source file using the TypeScript 2.0 compiler (tsc). I use <a href = "http://npmjs.com">npm</a> as my build tool and task runner. I would welcome submissions for making my package cross platform. I use Visual Studio Code as my development environment. </p>
 
+<p>The steps I use to making a patch and re-building/publishing Myna are:</p>
+
+<ol><li><code>npm run full</code> - This will build the TypeScript files, run tests, update docs, create a minified version of the JS file.   </li>
+<li><code>git add .</code> - Add the files to the git working state </li>
+<li><code>git commit -m "message"</code> - Create a git commit </li>
+<li><code>npm version patch</code> - Create a patch (will create a secondary Git commit)</li>
+<li><code>git push -u</code> Push the commits to the server </li>
+<li><code>npm publish</code> - Publish the Node package</li>
+</ol>
+
 <h2>Myna Tests  </h2>
 
-<p>There are over a <a href = "https://cdiggins.github.io/myna-parser/qunit.html">1000 unit tests</a> written using <a href = "http://qunitjs.com">QUnit</a>. There are also individual test files for each example tool, which you can run as a suite using <code>node tests\test<i>all</i>tools.js</code>.</p>
+<p>There are over a <a href = "https://cdiggins.github.io/myna-parser/tests/qunit.html">1000 unit tests</a> written using <a href = "http://qunitjs.com">QUnit</a>. There are also individual test files for each example tool, which you can run as a suite using <code>node tests\test<i>all</i>tools.js</code>.</p>
 
 <h2>Minification   </h2>
 
