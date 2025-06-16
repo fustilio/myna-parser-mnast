@@ -1,6 +1,6 @@
 {
   "name": "myna-parser-mnast",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Myna parser with Unist compatibility",
   "type": "module",
   "main": "dist/index.mjs",

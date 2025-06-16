@@ -1,7 +1,7 @@
 import { u } from "unist-builder";
 import { visit } from "unist-util-visit";
 import { is } from "unist-util-is";
-import { MnastNode, MnastConversionOptions } from "./types";
+import { MnastNode, MnastConversionOptions, MnastNodeMap } from "./types";
 import { calculateNodePosition, calculateIndent } from "./position";
 
 function getBaseRule(rule: any): any {
@@ -17,9 +17,9 @@ function getBaseRule(rule: any): any {
 }
 
 /**
- * Convert a Myna AST/CST node to a mnast node
+ * Convert a Myna AST/CST node to a mnast node (generic)
  */
-export function toMnast(node: any, options: MnastConversionOptions = {}): MnastNode {
+export function toMnast<T extends MnastNodeMap>(node: any, options: MnastConversionOptions = {}): MnastNode<T> {
   const {
     includePosition = true,
     includeMynaData = true,
@@ -89,36 +89,36 @@ export function toMnast(node: any, options: MnastConversionOptions = {}): MnastN
   // Add children if present
   if (node.children && node.children.length > 0) {
     (mnastNode as any).children = node.children.map((child: any) =>
-      toMnast(child, options)
+      toMnast<T>(child, options)
     );
   }
 
-  return mnastNode as MnastNode;
+  return mnastNode as MnastNode<T>;
 }
 
 /**
- * Convert a mnast node back to a Myna AST/CST node
+ * Convert a mnast node back to a Myna AST/CST node (generic)
  */
-export function fromMnast(node: MnastNode): any {
-  const isCST = node.data?.isCST ?? false;
+export function fromMnast<T extends MnastNodeMap>(node: MnastNode<T>): any {
+  const isCST = (node as any).data?.isCST ?? false;
   const mynaNode: any = {
-    rule: node.data?.rule || { name: node.type },
-    input: node.position ? node.position.start.offset.toString() : "",
-    start: node.position?.start.offset || 0,
-    end: node.position?.end.offset || 0,
-    children: node.children ? node.children.map(fromMnast) : null,
+    rule: (node as any).data?.rule || { name: (node as any).type },
+    input: (node as any).position ? (node as any).position.start.offset.toString() : "",
+    start: (node as any).position?.start.offset || 0,
+    end: (node as any).position?.end.offset || 0,
+    children: (node as any).children ? (node as any).children.map(fromMnast) : null,
   };
 
   // Add text content for leaf nodes
-  if (node.value) {
-    mynaNode.allText = node.value;
-  } else if (isCST && node.data?.originalText) {
-    mynaNode.allText = node.data.originalText;
+  if ((node as any).value) {
+    mynaNode.allText = (node as any).value;
+  } else if (isCST && (node as any).data?.originalText) {
+    mynaNode.allText = (node as any).data.originalText;
   }
 
   // Add additional Myna-specific properties
-  if (node.data) {
-    Object.assign(mynaNode, node.data);
+  if ((node as any).data) {
+    Object.assign(mynaNode, (node as any).data);
   }
 
   return mynaNode;
@@ -127,9 +127,9 @@ export function fromMnast(node: MnastNode): any {
 /**
  * Visit all nodes in a mnast tree and apply a function
  */
-export function visitMnast(
-  tree: MnastNode,
-  visitor: (node: MnastNode) => void
+export function visitMnast<T extends MnastNodeMap>(
+  tree: MnastNode<T>,
+  visitor: (node: MnastNode<T>) => void
 ): void {
   visit(tree, visitor);
 }
@@ -137,18 +137,18 @@ export function visitMnast(
 /**
  * Check if a node matches a specific type
  */
-export function isMnastNode(node: any, type: string): boolean {
+export function isMnastNode<T extends MnastNodeMap>(node: any, type: Extract<keyof T, string> | string): node is MnastNode<T> {
   return is(node, type);
 }
 
 /**
  * Get all nodes of a specific type
  */
-export function getMnastNodesByType(tree: MnastNode, type: string): MnastNode[] {
-  const nodes: MnastNode[] = [];
+export function getMnastNodesByType<T extends MnastNodeMap>(tree: MnastNode<T>, type: Extract<keyof T, string> | string): MnastNode<T>[] {
+  const nodes: MnastNode<T>[] = [];
   visit(tree, (node) => {
     if (is(node, type)) {
-      nodes.push(node as MnastNode);
+      nodes.push(node as MnastNode<T>);
     }
   });
   return nodes;

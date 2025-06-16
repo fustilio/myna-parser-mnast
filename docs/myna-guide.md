@@ -1,4 +1,4 @@
-# Myna Parsing Library: LLM Essential Guide
+# Myna Parsing Library: Essential Guide
 
 ## Table of Contents
 1. What is Myna?
@@ -9,7 +9,16 @@
 6. Testing and Debugging
 7. Project Structure and Conventions
 8. Advanced Tips and Best Practices
-9. Troubleshooting and Common Pitfalls
+9. Grammar Writing Recipes
+10. Debugging and Inspecting Grammars
+11. Common Pitfalls and How to Avoid Them
+12. Performance and Scaling
+13. Grammar Style Guide
+14. Cheat Sheet: Combinators & Modifiers
+15. Further Reading and References
+16. Advanced Real-World Patterns & Recipes
+17. Idioms from the Wild
+18. FAQ and Troubleshooting
 
 ---
 
@@ -421,28 +430,381 @@ for (const rule of m.allGrammarRules()) {
 
 ---
 
-## 9. Troubleshooting and Common Pitfalls
+## 9. Grammar Writing Recipes
 
-### Common Issues
-1. **No AST nodes?** Make sure rules are marked with `.ast`
-2. **Unexpected parse failures?** Check for missing `.opt`, `.zeroOrMore`, or `.oneOrMore`
-3. **Circular references?** Use `m.delay()` for recursive rules
-4. **Whitespace issues?** Use `.ws` or `m.ws.opt` appropriately
-5. **Grammar not registered?** Check `registerGrammar` call
+This section provides practical, copy-pasteable patterns for common grammar constructs, inspired by real grammars in `/grammars`.
 
-### Best Practices
-1. Use `.ast` selectively: Only mark rules that should appear in the AST
-2. Use constants for character sets: Improves readability and maintainability
-3. Test edge cases: Always include tests for invalid and ambiguous input
-4. Leverage combinators: Compose complex rules from smaller, well-named building blocks
-5. Document grammars: Add comments explaining tricky rules or design decisions
+### 9.1. Delimited Lists
+```typescript
+g.list = m.seq(
+    g.item,
+    m.seq(g.delimiter, g.item).zeroOrMore
+).ast;
+// Or, using Myna's built-in:
+g.list = m.delimited(g.item, g.delimiter).ast;
+```
+
+### 9.2. Recursive Rules (e.g., Expressions)
+```typescript
+g.expr = m.delay(() => g.sum).ast;
+g.sum = m.seq(g.product, g.addExpr.or(g.subExpr).zeroOrMore).ast;
+```
+
+### 9.3. Operator Precedence (Arithmetic)
+See [`grammar_arithmetic.ts`](../packages/myna-parser-ts/grammars/grammar_arithmetic.ts):
+```typescript
+g.expr = m.delay(() => g.sum).ast;
+g.sum = m.seq(g.product, g.addExpr.or(g.subExpr).zeroOrMore).ast;
+g.product = m.seq(g.prefixExpr.ws, g.mulExpr.or(g.divExpr).zeroOrMore).ast;
+```
+
+### 9.4. Parenthesized/Bracketed Content
+```typescript
+g.parenExpr = m.parenthesized(g.expr.ws).ast;
+// Or, for custom delimiters:
+g.bracketed = m.seq('[', g.content, ']').ast;
+```
+
+### 9.5. Optional and Repeated Elements
+```typescript
+g.optional = g.rule.opt;
+g.zeroOrMore = g.rule.zeroOrMore;
+g.oneOrMore = g.rule.oneOrMore;
+```
+
+### 9.6. Guarded Sequences (with whitespace)
+```typescript
+function guardedWsDelimSeq(...args: any[]) {
+    const wsArgs = args.slice(1).map(r => m.seq(m.assert(r), g.ws));
+    return m.seq(args[0], g.ws, m.seq(...wsArgs));
+}
+```
+
+### 9.7. Circular References
+```typescript
+g.value = m.choice(
+    g.string,
+    g.number,
+    m.delay(() => g.array),
+    m.delay(() => g.object)
+).ast;
+```
+
+### 9.8. Comments and Whitespace
+```typescript
+g.comment = m.seq('//', m.advanceWhileNot(m.newLine));
+g.ws = g.comment.or(m.atWs.then(m.advance)).zeroOrMore;
+```
+
+### 9.9. Quoted Strings with Escapes
+```typescript
+g.escapedChar = m.seq('\\', m.choice('"', '\\', '/', 'b', 'f', 'n', 'r', 't', m.seq('u', m.hexDigit.repeat(4)))).ast;
+g.quoteChar = m.choice(g.escapedChar, m.notChar('"\\')).ast;
+g.string = m.seq('"', g.quoteChar.zeroOrMore, '"').ast;
+```
 
 ---
 
-## Further Reading and References
+## 10. Debugging and Inspecting Grammars
+
+### 10.1. Enable Debug Logging
+```typescript
+m.debug(); // Enables verbose debug output
+```
+
+### 10.2. Print Grammar as PEG
+```typescript
+console.log(m.grammarToString('json'));
+```
+
+### 10.3. Print AST Schema
+```typescript
+console.log(m.astSchemaToString('json'));
+```
+
+### 10.4. Walk the AST
+```typescript
+function walk(node, depth = 0) {
+    console.log(' '.repeat(depth * 2) + node.name + ': ' + node.allText);
+    for (const child of node.children) walk(child, depth + 1);
+}
+walk(ast);
+```
+
+### 10.5. Test Individual Rules
+```typescript
+const result = m.parse(g.rule, 'input');
+console.log(result);
+```
+
+### 10.6. Check Rule Initialization Order
+- Ensure all rules are initialized as `null as any` in the grammar object to avoid circular reference issues.
+- Use `m.delay()` for recursive/circular rules.
+
+### 10.7. Use AST Inspection Tools
+- Use `.toString()` on AST nodes for pretty-printing.
+- Inspect node properties (`name`, `allText`, `children`).
+
+---
+
+## 11. Common Pitfalls and How to Avoid Them
+
+1. **No AST nodes?**
+   - Make sure rules are marked with `.ast`.
+2. **Unexpected parse failures?**
+   - Check for missing `.opt`, `.zeroOrMore`, or `.oneOrMore`.
+3. **Circular references?**
+   - Use `m.delay()` for recursive rules.
+4. **Whitespace issues?**
+   - Use `.ws` or `m.ws.opt` appropriately.
+5. **Grammar not registered?**
+   - Check `registerGrammar` call.
+6. **Ambiguous rules?**
+   - Order `m.choice()` options from most to least specific.
+7. **Unintended matches?**
+   - Use `m.assert()` and `m.not()` to guard boundaries.
+8. **Performance bottlenecks?**
+   - Avoid left-recursive patterns; prefer right recursion or iterative constructs.
+9. **Hard-to-read grammars?**
+   - Use helper functions and break up complex rules.
+10. **Unmaintainable grammars?**
+    - Use interfaces and factory functions for structure.
+
+---
+
+## 12. Performance and Scaling
+
+- **Avoid left recursion:** Myna (like most combinator libraries) does not support left recursion. Rewrite left-recursive rules as right-recursive or iterative.
+- **Use `.opt` and `.zeroOrMore` judiciously:** Overuse can lead to excessive backtracking.
+- **Profile with large inputs:** Use benchmark tests for performance-critical grammars.
+- **Reuse rules:** Factor out common patterns to avoid duplication and improve cache hits.
+- **Minimize AST nodes:** Only mark rules with `.ast` that are semantically meaningful.
+- **Test with real-world data:** Especially for large/complex grammars (see `/grammars/grammar_glsl.ts`, `/grammar_pithy.ts`).
+
+---
+
+## 13. Grammar Style Guide
+
+- **Naming:**
+  - Use descriptive, lowerCamelCase for rule names (e.g., `parenExpr`, `addExpr`).
+  - Prefix helper functions with `create` (e.g., `createJsonGrammar`).
+  - Use consistent naming for grammar files: `grammar_{name}.ts`.
+- **Structure:**
+  - Always define a TypeScript interface for your grammar.
+  - Use a factory function pattern with `create{Name}Grammar`.
+  - Initialize all rules as `null as any` in the grammar object.
+  - Define helper rules first, then main rules.
+  - Register the grammar with a root rule.
+  - Return the grammar object for testing and reuse.
+- **Documentation:**
+  - Add comments explaining tricky rules or design decisions.
+  - Reference related grammars or patterns.
+- **Collaboration:**
+  - Keep grammars modular and focused.
+  - Use interfaces and clear structure for maintainability.
+  - Document test cases and edge cases.
+
+---
+
+## 14. Cheat Sheet: Combinators & Modifiers
+
+### Core Combinators
+- `m.text("abc")` — match exact text
+- `m.char("aeiou")` — match any character in the set
+- `m.seq(ruleA, ruleB)` — match a sequence
+- `m.choice(ruleA, ruleB)` — match one of several options
+- `m.notChar("xyz")` — match any character not in the set
+- `m.keywords("if", "else")` — match whole keywords
+- `m.parenthesized(rule)` — match rule in parentheses
+- `m.delimited(rule, delimiter)` — match delimited list
+- `m.doubleQuoted(rule)` — match double-quoted string
+- `m.singleQuoted(rule)` — match single-quoted string
+- `m.advanceWhileNot(rule)` — advance until rule
+- `m.advanceUntilPast(rule)` — advance until after rule
+- `m.delay(() => rule)` — lazy/circular reference
+
+### Rule Modifiers (Chaining)
+- `.ast` — Mark this rule to create an AST node if it matches.
+- `.opt` — Make rule optional.
+- `.zeroOrMore` / `.oneOrMore` — Repeat rule 0+ or 1+ times.
+- `.ws` — Allow whitespace between elements.
+- `.then(rule)` — Sequence with another rule.
+- `.or(rule)` — Alternative to another rule.
+- `.unless(rule)` — Only match if rule does not match.
+- `.not` — Only match if rule does not match at this position.
+- `.assert(rule)` — Lookahead for rule.
+
+### AST Node Helpers
+- `.name` — Set the name of the AST node.
+- `.toString()` — Pretty-print the AST node.
+
+---
+
+## 15. Further Reading and References
 
 - [Myna GitHub Repository](https://github.com/cdiggins/myna-parser)
 - [Myna on NPM](https://www.npmjs.com/package/myna-parser)
 - [Sample Grammars](https://github.com/cdiggins/myna-parser/tree/master/grammars)
 - [Example Tools](https://github.com/cdiggins/myna-parser/tree/master/tools)
 - [Official Documentation](https://github.com/cdiggins/myna-parser#readme)
+- [Your Project's /grammars Directory](../packages/myna-parser-ts/grammars/) — See real-world grammars for inspiration and patterns
+
+---
+
+Happy grammar writing! For more inspiration, explore the grammars in `/grammars` and experiment with your own combinators and patterns.
+
+## 16. Advanced Real-World Patterns & Recipes
+
+### 16.1. Custom Delimiters and Parameterization
+- **CSV Grammar:**
+  ```typescript
+  // Accepts delimiter as parameter
+  export function createCsvGrammar(myna: typeof Myna, delimiter: string = ',') { ... }
+  // Usage: createCsvGrammar(m, '\t') for TSV
+  ```
+- **Mustache Grammar:**
+  ```typescript
+  // Accepts start/end delimiters as parameters
+  export function createMustacheGrammar(myna: typeof Myna, start = '{{', end = '}}') { ... }
+  ```
+
+### 16.2. Mutually Recursive Rules
+- **Markdown Inline/Section:**
+  ```typescript
+  // Allows inline to reference itself recursively
+  inlineDelayed = m.delay(() => this.inline);
+  inline = m.choice(..., this.inlineDelayed, ...);
+  ```
+- **Mustache Content/Section:**
+  ```typescript
+  g.recursiveContent = m.delay(() => g.content);
+  g.sectionContent = g.recursiveContent.ast;
+  ```
+
+### 16.3. Advanced Whitespace and Comment Handling
+- **Pithy/GLSL/Heron:**
+  ```typescript
+  g.comment = m.seq('//', m.advanceWhileNot(m.newLine));
+  g.ws = g.comment.or(m.atWs.then(m.advance)).zeroOrMore;
+  // Use g.ws in all whitespace-sensitive rules
+  ```
+- **Pithy:**
+  ```typescript
+  g.sp = m.choice(m.char(' \t'), g.comment).zeroOrMore;
+  g.ws = m.choice(m.char(' \t\r\n\f\v'), g.comment).zeroOrMore;
+  ```
+
+### 16.4. Operator Precedence and Associativity
+- **Arithmetic/GLSL/Heron/Pithy:**
+  ```typescript
+  // See grammar_arithmetic.ts, grammar_glsl.ts, grammar_heron.ts, grammar_pithy.ts
+  g.expr = m.delay(() => g.sum).ast;
+  g.sum = m.seq(g.product, g.addExpr.or(g.subExpr).zeroOrMore).ast;
+  g.product = m.seq(g.prefixExpr.ws, g.mulExpr.or(g.divExpr).zeroOrMore).ast;
+  // ...
+  ```
+
+### 16.5. Guarded Sequences and Lookahead
+- **Heron/GLSL:**
+  ```typescript
+  function guardedWsDelimSeq(...args: any[]) {
+    const wsArgs = args.slice(1).map(r => m.seq(m.assert(r), g.ws));
+    return m.seq(args[0], g.ws, m.seq(...wsArgs));
+  }
+  // Use m.assert, m.not for lookahead/negative lookahead
+  ```
+
+### 16.6. Flexible List Parsing
+- **Pithy:**
+  ```typescript
+  function commaList(r: Myna.Rule, trailing = true) {
+    const flexible_comma_separator = m.seq(g.sp.opt, g.comma, g.sp.opt);
+    const result = r.then(m.seq(flexible_comma_separator, r).zeroOrMore);
+    if (trailing) return result.then(flexible_comma_separator.opt);
+    return result;
+  }
+  ```
+- **CSV:**
+  ```typescript
+  g.record = g.field.delimited(delimiter).ast;
+  g.file = g.record.delimited(m.newLine).ast;
+  ```
+
+### 16.7. Indentation and Block-Sensitive Parsing
+- **Pithy:**
+  ```typescript
+  g.indent = m.text('    ');
+  g.dedent = m.not(g.indent);
+  g.suite = m.delay(() => {
+    const indented_line = m.choice(m.seq(g.indent, g.stmt), g.blankLine);
+    const indented_block = m.seq(m.newLine, indented_line.oneOrMore, g.dedent);
+    return m.choice(g.simpleStmt, indented_block);
+  }).ast;
+  ```
+
+### 16.8. Template/Markup Grammars
+- **Mustache:**
+  ```typescript
+  g.section = m.guardedSeq(g.startSection, g.sectionContent, g.endSection).ast;
+  g.invertedSection = m.guardedSeq(g.startInvertedSection, g.sectionContent, g.endSection).ast;
+  g.plainText = m.advanceOneOrMoreWhileNot(startDelimiter).ast;
+  ```
+- **Markdown:**
+  ```typescript
+  g.bold = m.choice(this.boundedInline('**'), this.boundedInline('__')).ast;
+  g.codeBlock = m.guardedSeq(this.codeBlockDelim, this.codeBlockHint, m.newLine.opt, this.codeBlockContent, this.codeBlockDelim).ast;
+  ```
+
+### 16.9. Fielded/Key-Value Syntax
+- **Lucene:**
+  ```typescript
+  g.field = g.fieldName.then(':');
+  g.param = g.paramKey.then('=').opt.then(g.paramValue).ast;
+  g.localParams = m.seq('{!', m.delimited(g.param, g.ws), m.assert('}')).ast;
+  ```
+- **JSON:**
+  ```typescript
+  g.pair = m.seq(g.string, m.ws, ':', m.ws, g.value).ast;
+  g.object = m.seq(m.ws, '{', m.ws, m.choice(m.seq(g.pair, m.seq(m.ws, g.comma, m.ws, g.pair).zeroOrMore), m.text('')), m.ws, '}', m.ws).ast;
+  ```
+
+---
+
+## 17. Idioms from the Wild
+
+- **Avoiding Left Recursion:** Rewrite left-recursive rules as right-recursive or iterative (see arithmetic, Pithy, GLSL).
+- **Modularizing Large Grammars:** Use interfaces, factory functions, and helper rules (see Heron, GLSL, Pithy).
+- **Lookahead/Negative Lookahead:** Use `.assert`, `.not`, `.unless` for context-sensitive parsing (see Heron, Markdown, Mustache).
+- **Greedy/Non-Greedy Patterns:** Use `.advanceWhileNot`, `.advanceUntilPast`, `.delay` for recursive/greedy patterns (see Markdown, Mustache).
+- **Prioritized Alternatives:** Use `.or`, `.choice` with most specific rules first (see all grammars).
+- **Whitespace Handling:** Use `.ws`, custom whitespace rules, and context-sensitive whitespace (see Heron, GLSL, Pithy).
+- **Selective AST Marking:** Only use `.ast` for semantically meaningful nodes (see all grammars).
+- **Parameterization:** Make grammars configurable for delimiters, keywords, etc. (see CSV, Mustache).
+- **Testing in Isolation:** Test rules incrementally, not just at the top level.
+
+---
+
+## 18. FAQ and Troubleshooting
+
+**Q: Why does my rule match too much/too little?**
+- Check for missing `.opt`, `.zeroOrMore`, or `.oneOrMore`.
+- Ensure alternatives in `.choice` are ordered from most to least specific.
+- Use `.not`, `.assert`, or `.unless` to guard boundaries.
+
+**Q: How do I debug infinite recursion or stack overflows?**
+- Check for left recursion. Use `m.delay()` for recursive rules.
+- Test rules in isolation with small inputs.
+
+**Q: How do I parse context-sensitive constructs (e.g., indentation, nested templates)?**
+- Use lookahead (`.assert`, `.not`), parameterized rules, and helper functions.
+- See Pithy for indentation, Mustache for nested templates.
+
+**Q: How do I handle optional/trailing delimiters?**
+- Use flexible list idioms (see Pithy `commaList`, CSV `delimited`).
+
+**Q: How do I parse languages with both line and block comments?**
+- Combine comment rules with `.or` and include in your whitespace rule (see GLSL, Heron).
+
+**Q: How do I test and validate my grammar incrementally?**
+- Write tests for individual rules, not just the root rule.
+- Use `m.parse(g.rule, input)` and inspect the AST.

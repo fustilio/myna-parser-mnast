@@ -12,6 +12,12 @@ This package provides conversion utilities to transform [Myna parser](https://gi
 
 **Note:** There is also a related package, `myna-parser-ts` (currently unpublished), which includes a rewrite of the tests for the Myna parser. However, the core `myna.ts` remains the same as the original by Christopher Diggins. This is for improved testing and maintainability, but does not alter the core parsing logic.
 
+## New in vNext: Fully Generic, Type-Safe API
+
+- `toMnast` and `fromMnast` are now **fully generic** and type-safe.
+- You can define a grammar-specific node map and get type inference and type guards for your nodes.
+- TypeScript will help you extend and use mnast nodes for your grammar with full safety and autocompletion.
+
 ## Installation
 
 ```bash
@@ -20,28 +26,80 @@ npm install myna-parser-mnast
 
 ## Usage
 
+### 1. Define a Grammar-Specific Node Map
+
 ```typescript
-import { toMnast, fromMnast } from 'myna-parser-mnast';
+import { MnastNode, toMnast, fromMnast } from 'myna-parser-mnast';
 
-// Example: Convert a Myna AST node to a mnast node
-const mnastNode = toMnast(mynaNode);
-
-// Convert a mnast node back to a Myna node
-const mynaNodeAgain = fromMnast(mnastNode);
+type CsvMnastNodeMap = {
+  field: { value: string; children?: never };
+  record: { children: CsvMnastNode[]; value?: never };
+  file: { children: CsvMnastNode[]; value?: never };
+};
+type CsvMnastNode = MnastNode<CsvMnastNodeMap>;
 ```
 
-See the API section for more details.
+### 2. Convert Myna AST to mnast (with type safety)
+
+```typescript
+const mynaNode = { /* ...from Myna parser... */ };
+const mnastNode = toMnast<CsvMnastNodeMap>(mynaNode);
+```
+
+### 3. Convert mnast back to Myna AST
+
+```typescript
+const mynaNodeAgain = fromMnast<CsvMnastNodeMap>(mnastNode);
+```
+
+### 4. Type Guards and Inference
+
+You can define type guards for your node types:
+
+```typescript
+type CsvFieldNode = Extract<CsvMnastNode, { type: 'field' }>;
+type CsvRecordNode = Extract<CsvMnastNode, { type: 'record' }>;
+
+function isFieldNode(node: CsvMnastNode): node is CsvFieldNode {
+  return node.type === 'field';
+}
+
+function isRecordNode(node: CsvMnastNode): node is CsvRecordNode {
+  return node.type === 'record';
+}
+
+if (isFieldNode(mnastNode)) {
+  // TypeScript infers CsvFieldNode
+  console.log(mnastNode.value);
+}
+```
+
+### 5. Runtime Type Guard Example
+
+```typescript
+import { isMnastNode } from 'myna-parser-mnast';
+
+if (isMnastNode<CsvMnastNodeMap>(mnastNode, 'field')) {
+  // Safe to treat as CsvFieldNode
+}
+```
 
 ## API
 
-### `toMnast(node: any, options?: MnastConversionOptions): MnastNode`
-Converts a Myna AST node to a mnast (Unist-compatible) node.
+### `toMnast<T extends MnastNodeMap>(node: any, options?: MnastConversionOptions): MnastNode<T>`
+Converts a Myna AST node to a mnast (Unist-compatible) node, with type safety for your grammar.
 
-### `fromMnast(node: MnastNode): any`
-Converts a mnast node back to a Myna AST node.
+### `fromMnast<T extends MnastNodeMap>(node: MnastNode<T>): any`
+Converts a mnast node back to a Myna AST node, with type safety for your grammar.
 
 ### Types
-See [src/types.ts](./src/types.ts) for full type definitions.
+See [src/types.ts](./src/types.ts) for full type definitions and how to extend mnast for your grammar.
+
+## Extending mnast for Your Grammar
+
+- Define a node map for your grammar.
+- Use the generic API for type-safe conversion and manipulation.
+- Use type guards and discriminated unions for ergonomic, safe code.
 
 ## License
 
