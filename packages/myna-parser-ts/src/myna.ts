@@ -1076,7 +1076,7 @@ export namespace Myna {
 
     // Returns the root node of the abstract syntax tree created 
     // by parsing the rule.  
-    export function parse(r: Rule, s: string): AstNode {
+    export function parse(r: Rule, s: string): AstNode | null{
         if (!r.parser) {
             throw new ParserError('Parser not initialized');
         }

@@ -569,6 +569,14 @@ console.log(result);
    - Use helper functions and break up complex rules.
 10. **Unmaintainable grammars?**
     - Use interfaces and factory functions for structure.
+11. **Parser hangs on unterminated tokens?**
+    - Use `m.assert(m.end)` to ensure proper termination
+    - Separate error rules from valid token rules
+    - Use `m.not(errorRule)` in the file rule to fail on errors
+12. **Error handling not working?**
+    - Ensure error rules are properly separated from valid token rules
+    - Use `m.seq(validTokens, m.not(errorRule), m.end)` for file rules
+    - Consider using `m.fail()` for explicit error cases
 
 ---
 
@@ -768,6 +776,668 @@ Happy grammar writing! For more inspiration, explore the grammars in `/grammars`
   g.object = m.seq(m.ws, '{', m.ws, m.choice(m.seq(g.pair, m.seq(m.ws, g.comma, m.ws, g.pair).zeroOrMore), m.text('')), m.ws, '}', m.ws).ast;
   ```
 
+### 16.10. Error Handling and Unterminated Tokens
+```typescript
+// Example from JavaScript tokens grammar
+// Define valid tokens
+g.token = m.choice(
+    g.whiteSpace,
+    g.comment,
+    g.identifier,
+    g.number,
+    g.doubleQuotedString,
+    g.singleQuotedString,
+    g.punctuator
+).ast;
+
+// Define error tokens separately
+g.error = m.choice(
+    g.unterminatedDoubleQuotedString,
+    g.unterminatedSingleQuotedString,
+    m.seq("/*", m.advanceUntilPast("*/").not),
+    m.advance
+).ast;
+
+// File rule ensures no errors and proper termination
+g.file = m.seq(
+    m.zeroOrMore(g.token),
+    m.not(g.error),
+    m.end
+).ast;
+```
+
+### 16.11. Handling Unterminated Strings
+```typescript
+// Valid string with proper termination
+g.doubleQuotedString = m.seq(
+    '"',
+    m.choice(g.escape, m.notChar('"\n\r\\')).zeroOrMore,
+    '"'
+).ast;
+
+// Unterminated string (for error detection)
+g.unterminatedDoubleQuotedString = m.seq(
+    '"',
+    m.choice(g.escape, m.notChar('"\n\r\\')).zeroOrMore,
+    m.assert(m.end)
+).ast;
+```
+
+### 16.12. Handling Unterminated Comments
+```typescript
+// Valid multi-line comment
+g.multiLineComment = m.seq("/*", m.advanceUntilPast("*/")).ast;
+
+// Unterminated comment detection
+g.unterminatedComment = m.seq(
+    "/*",
+    m.advanceUntilPast("*/").not
+).ast;
+```
+
+### 16.13. Testing Error Cases and Edge Cases
+```typescript
+describe('Error Cases', () => {
+  it('should fail on unterminated comment', () => {
+    const input = `var x = 1; /* unterminated`;
+    expect(!!Myna.parse(g.file, input)).toBeFalsy();
+  });
+
+  it('should fail on unterminated string', () => {
+    const input = `var x = 'unterminated`;
+    expect(!!Myna.parse(g.file, input)).toBeFalsy();
+  });
+
+  it('should handle escape sequences in strings', () => {
+    const input = `"escaped: \\" \\n \\t"`;
+    expect(!!Myna.parse(g.string, input)).toBeTruthy();
+  });
+});
+```
+
+### 16.14. Systematic Rule Testing
+```typescript
+describe('Rule-based Tests', () => {
+  const tester = new RuleTesterVitest(Myna);
+  
+  it('should test all rules systematically', () => {
+    tester.testRule(g.string, [
+      { input: '"valid"', shouldMatch: true },
+      { input: '"unterminated', shouldMatch: false },
+      { input: '"escaped\\"quote"', shouldMatch: true }
+    ]);
+  });
+});
+```
+
+### 16.15. Defensive Grammar Patterns
+```typescript
+// Always consume at least one character for unknown input
+g.error = m.choice(
+  m.seq('"', m.choice(g.escape, m.notChar('"\n\r\\')).zeroOrMore, m.assert(m.end)),
+  m.seq("'", m.choice(g.escape, m.notChar("'\n\r\\")).zeroOrMore, m.assert(m.end)),
+  m.seq("/*", m.advanceUntilPast("*/").not),
+  m.advance  // Fallback: consume one character
+).ast;
+
+// Ensure progress is always made
+g.file = m.seq(
+  m.zeroOrMore(g.token),
+  m.not(g.error),
+  m.end
+).ast;
+```
+
+### 16.16. Escape Sequence Handling
+```typescript
+// Define escape sequences
+g.escape = m.seq(
+  '\\',
+  m.choice(
+    m.char('"\'\\/bfnrt'),  // Simple escapes
+    m.seq('u', m.hexDigit.repeat(4))  // Unicode escapes
+  )
+).ast;
+
+// Use in string rules
+g.doubleQuotedString = m.seq(
+  '"',
+  m.choice(g.escape, m.notChar('"\n\r\\')).zeroOrMore,
+  '"'
+).ast;
+```
+
+### 16.17. Integration Testing Patterns
+```typescript
+describe('Integration Tests', () => {
+  it('should parse a sequence of tokens', () => {
+    const input = `var x = 42; // comment
+    let y = "string";`;
+    expect(!!Myna.parse(g.file, input)).toBeTruthy();
+  });
+
+  it('should handle mixed content', () => {
+    const input = `/* block comment */
+    var x = "string" + 42; // line comment`;
+    expect(!!Myna.parse(g.file, input)).toBeTruthy();
+  });
+});
+```
+
+### 16.18. Error Recovery Strategies
+```typescript
+// Option 1: Fail fast on first error
+g.file = m.seq(
+  m.zeroOrMore(g.token),
+  m.not(g.error),
+  m.end
+).ast;
+
+// Option 2: Collect errors but continue parsing
+g.file = m.seq(
+  m.zeroOrMore(m.choice(g.token, g.error)),
+  m.end
+).ast;
+
+// Option 3: Error recovery with synchronization points
+g.file = m.seq(
+  m.zeroOrMore(m.choice(
+    g.token,
+    m.seq(g.error, m.advanceUntilPast(';').opt)  // Recover at statement end
+  )),
+  m.end
+).ast;
+```
+
+### 16.19. Advanced Token Classification
+```typescript
+// Token classification with semantic meaning
+g.token = m.choice(
+  // Keywords (must be checked before identifiers)
+  m.keywords("if", "else", "while", "for", "function").ast,
+  // Literals
+  g.number.ast,
+  g.string.ast,
+  // Operators (ordered by length to handle compound operators)
+  m.choice("===", "==", "=").ast,
+  m.choice("&&", "&").ast,
+  // Identifiers (must come after keywords)
+  g.identifier.ast,
+  // Punctuators
+  g.punctuator.ast
+).ast;
+```
+
+### 16.20. Context-Sensitive Parsing
+```typescript
+// Example: Parsing template literals with embedded expressions
+g.templateLiteral = m.seq(
+  '`',
+  m.choice(
+    m.seq('${', g.expression, '}'),  // Expression
+    m.notChar('`${').oneOrMore       // Literal text
+  ).zeroOrMore,
+  '`'
+).ast;
+
+// Example: Parsing JSX-like syntax
+g.jsxElement = m.seq(
+  '<',
+  g.identifier,
+  m.zeroOrMore(g.attribute),
+  m.choice(
+    m.seq('>', g.jsxContent, '</', g.identifier, '>'),  // Paired tags
+    '/>'  // Self-closing
+  )
+).ast;
+```
+
+### 16.21. Performance Optimization Patterns
+```typescript
+// 1. Rule Caching
+g.cachedRule = m.cache(m.choice(
+  g.ruleA,
+  g.ruleB
+)).ast;
+
+// 2. Early Termination
+g.optimizedList = m.seq(
+  g.item,
+  m.choice(
+    m.seq(g.delimiter, g.item).zeroOrMore,  // Normal case
+    m.end  // Early exit if no more items
+  )
+).ast;
+
+// 3. Lookahead Optimization
+g.optimizedChoice = m.choice(
+  m.seq(m.assert('if'), g.ifStatement),     // Keyword lookahead
+  m.seq(m.assert('while'), g.whileStatement),
+  g.defaultCase
+).ast;
+```
+
+### 16.22. Advanced Error Reporting
+```typescript
+// Custom error reporting with context
+g.error = m.choice(
+  m.seq(
+    '"',
+    m.choice(g.escape, m.notChar('"\n\r\\')).zeroOrMore,
+    m.assert(m.end).withError("Unterminated string literal")
+  ),
+  m.seq(
+    "/*",
+    m.advanceUntilPast("*/").not.withError("Unterminated comment")
+  )
+).ast;
+
+// Error recovery with context preservation
+g.file = m.seq(
+  m.zeroOrMore(m.choice(
+    g.token,
+    m.seq(
+      g.error,
+      m.advanceUntilPast(';').opt.withContext("Recovering at statement end")
+    )
+  )),
+  m.end
+).ast;
+```
+
+### 16.23. Modular Grammar Composition
+```typescript
+// Base grammar with common rules
+function createBaseGrammar(myna: typeof Myna) {
+  const g = {
+    identifier: m.identifier.ast,
+    number: m.number.ast,
+    string: m.string.ast,
+    // ... common rules
+  };
+  return g;
+}
+
+// Language-specific grammar extending base
+function createLanguageGrammar(myna: typeof Myna, base: any) {
+  const g = {
+    ...base,
+    // Language-specific rules
+    statement: m.choice(
+      g.ifStatement,
+      g.whileStatement,
+      g.expressionStatement
+    ).ast
+  };
+  return g;
+}
+```
+
+### 16.24. Advanced AST Transformation
+```typescript
+// AST transformation with context
+function transformAST(node: Myna.ASTNode, context: any) {
+  switch (node.name) {
+    case 'ifStatement':
+      return transformIfStatement(node, context);
+    case 'whileStatement':
+      return transformWhileStatement(node, context);
+    // ... other cases
+  }
+}
+
+// AST validation
+function validateAST(node: Myna.ASTNode): boolean {
+  if (!node) return false;
+  
+  // Validate node structure
+  if (node.name === 'function' && !node.children.some(c => c.name === 'body')) {
+    return false;
+  }
+  
+  // Recursively validate children
+  return node.children.every(validateAST);
+}
+```
+
+### 16.25. Grammar Debugging Tools
+```typescript
+// Rule tracing
+function traceRule(rule: Myna.Rule, input: string) {
+  console.log(`Tracing rule: ${rule.toString()}`);
+  console.log(`Input: ${input}`);
+  
+  const result = Myna.parse(rule, input);
+  console.log(`Result: ${result ? 'Match' : 'No match'}`);
+  if (result) {
+    console.log(`AST: ${result.toString()}`);
+  }
+}
+
+// Grammar visualization
+function visualizeGrammar(grammar: any) {
+  const rules = Object.entries(grammar)
+    .filter(([_, rule]) => rule instanceof Myna.Rule)
+    .map(([name, rule]) => ({
+      name,
+      definition: rule.toString(),
+      dependencies: findRuleDependencies(rule)
+    }));
+  
+  return rules;
+}
+```
+
+### 16.26. Advanced Testing Strategies
+```typescript
+// Property-based testing
+describe('Grammar Properties', () => {
+  it('should maintain invariants', () => {
+    const inputs = generateTestInputs();
+    for (const input of inputs) {
+      const result = Myna.parse(g.file, input);
+      if (result) {
+        expect(validateAST(result)).toBeTruthy();
+        expect(result.allText.length).toBe(input.length);
+      }
+    }
+  });
+});
+
+// Performance testing
+describe('Grammar Performance', () => {
+  it('should handle large inputs efficiently', () => {
+    const largeInput = generateLargeInput();
+    const start = performance.now();
+    Myna.parse(g.file, largeInput);
+    const end = performance.now();
+    expect(end - start).toBeLessThan(1000); // 1 second threshold
+  });
+});
+```
+
+### 16.27. Real-World Grammar Examples
+```typescript
+// Example: Markdown Parser
+g.markdown = m.choice(
+  g.heading,
+  g.paragraph,
+  g.list,
+  g.codeBlock,
+  g.blockquote
+).ast;
+
+g.heading = m.seq(
+  m.char('#').oneToSix,
+  m.ws,
+  m.advanceWhileNot(m.newLine),
+  m.newLine
+).ast;
+
+g.paragraph = m.seq(
+  m.not(m.choice(g.heading, g.list, g.codeBlock)),
+  m.advanceWhileNot(m.newLine),
+  m.newLine
+).ast;
+
+// Example: SQL Parser
+g.sql = m.choice(
+  g.selectStatement,
+  g.insertStatement,
+  g.updateStatement,
+  g.deleteStatement
+).ast;
+
+g.selectStatement = m.seq(
+  'SELECT',
+  m.ws,
+  g.columnList,
+  m.ws,
+  'FROM',
+  m.ws,
+  g.tableName,
+  g.whereClause.opt,
+  g.groupByClause.opt,
+  g.orderByClause.opt
+).ast;
+```
+
+### 16.28. Advanced Error Recovery Patterns
+```typescript
+// 1. Synchronization Points
+g.statement = m.choice(
+  g.validStatement,
+  m.seq(
+    g.error,
+    m.advanceUntilPast(';').opt,  // Sync at statement end
+    g.errorRecovery
+  )
+).ast;
+
+// 2. Error Correction
+g.errorCorrection = m.choice(
+  m.seq(g.error, m.advanceUntilPast(';').opt),  // Skip to next statement
+  m.seq(g.error, m.advanceUntilPast('}').opt),  // Skip to block end
+  m.seq(g.error, m.advanceUntilPast('\n').opt)  // Skip to next line
+).ast;
+
+// 3. Error Collection
+g.file = m.seq(
+  m.zeroOrMore(m.choice(
+    g.token,
+    m.seq(g.error, g.errorContext).ast
+  )),
+  m.end
+).ast;
+```
+
+### 16.29. Advanced Testing Strategies
+```typescript
+// 1. Fuzzing Tests
+describe('Grammar Fuzzing', () => {
+  it('should handle random inputs gracefully', () => {
+    for (let i = 0; i < 1000; i++) {
+      const input = generateRandomInput();
+      const result = Myna.parse(g.file, input);
+      // Should not throw or hang
+      expect(() => result).not.toThrow();
+    }
+  });
+});
+
+// 2. Regression Testing
+describe('Grammar Regression', () => {
+  it('should maintain backward compatibility', () => {
+    const testCases = loadTestCases();
+    for (const test of testCases) {
+      const result = Myna.parse(g.file, test.input);
+      expect(result).toEqual(test.expected);
+    }
+  });
+});
+
+// 3. Stress Testing
+describe('Grammar Stress', () => {
+  it('should handle large nested structures', () => {
+    const input = generateDeeplyNestedInput(1000);
+    const result = Myna.parse(g.file, input);
+    expect(result).toBeTruthy();
+  });
+});
+```
+
+### 16.30. Performance Optimization Techniques
+```typescript
+// 1. Rule Memoization
+g.memoizedRule = m.memoize(m.choice(
+  g.complexRuleA,
+  g.complexRuleB
+)).ast;
+
+// 2. Lazy Evaluation
+g.lazyRule = m.delay(() => g.complexRule).ast;
+
+// 3. Early Exit Optimization
+g.optimizedRule = m.seq(
+  m.assert(g.prefix),  // Quick check before complex parsing
+  g.complexRule
+).ast;
+
+// 4. Rule Inlining
+g.inlinedRule = m.seq(
+  g.prefix,
+  m.choice(
+    m.seq(g.optionA, g.suffix),
+    m.seq(g.optionB, g.suffix)
+  )
+).ast;
+```
+
+### 16.31. AST Manipulation Patterns
+```typescript
+// 1. AST Transformation Pipeline
+function transformAST(node: Myna.ASTNode): Myna.ASTNode {
+  return node
+    .transform(removeWhitespace)
+    .transform(normalizeIdentifiers)
+    .transform(optimizeExpressions)
+    .transform(generateCode);
+}
+
+// 2. AST Validation
+function validateAST(node: Myna.ASTNode): ValidationResult {
+  const errors: string[] = [];
+  
+  function validate(node: Myna.ASTNode, context: any) {
+    // Type checking
+    if (node.name === 'binaryExpression') {
+      const leftType = getType(node.children[0]);
+      const rightType = getType(node.children[1]);
+      if (!areTypesCompatible(leftType, rightType)) {
+        errors.push(`Type mismatch: ${leftType} and ${rightType}`);
+      }
+    }
+    
+    // Recursive validation
+    node.children.forEach(child => validate(child, context));
+  }
+  
+  validate(node, {});
+  return { valid: errors.length === 0, errors };
+}
+
+// 3. AST Optimization
+function optimizeAST(node: Myna.ASTNode): Myna.ASTNode {
+  return node.transform(node => {
+    switch (node.name) {
+      case 'binaryExpression':
+        return optimizeBinaryExpression(node);
+      case 'ifStatement':
+        return optimizeIfStatement(node);
+      // ... other cases
+    }
+    return node;
+  });
+}
+```
+
+### 16.32. Grammar Visualization and Analysis
+```typescript
+// 1. Rule Dependency Graph
+function buildDependencyGraph(grammar: any) {
+  const graph = new Map<string, Set<string>>();
+  
+  for (const [name, rule] of Object.entries(grammar)) {
+    if (rule instanceof Myna.Rule) {
+      const dependencies = findRuleDependencies(rule);
+      graph.set(name, new Set(dependencies));
+    }
+  }
+  
+  return graph;
+}
+
+// 2. Grammar Metrics
+function analyzeGrammar(grammar: any) {
+  return {
+    ruleCount: Object.keys(grammar).length,
+    maxDepth: calculateMaxDepth(grammar),
+    complexity: calculateComplexity(grammar),
+    circularDeps: findCircularDependencies(grammar)
+  };
+}
+
+// 3. Grammar Documentation
+function generateGrammarDocs(grammar: any) {
+  return Object.entries(grammar)
+    .filter(([_, rule]) => rule instanceof Myna.Rule)
+    .map(([name, rule]) => ({
+      name,
+      definition: rule.toString(),
+      examples: generateExamples(rule),
+      dependencies: findRuleDependencies(rule)
+    }));
+}
+```
+
+### 16.33. Advanced Error Handling
+```typescript
+// 1. Custom Error Types
+class GrammarError extends Error {
+  constructor(
+    public message: string,
+    public position: number,
+    public context: any
+  ) {
+    super(message);
+  }
+}
+
+// 2. Error Recovery with Context
+function recoverFromError(
+  error: GrammarError,
+  grammar: any,
+  input: string
+): RecoveryResult {
+  const context = {
+    position: error.position,
+    expected: error.context.expected,
+    found: error.context.found
+  };
+  
+  // Try different recovery strategies
+  const strategies = [
+    skipToNextStatement,
+    skipToBlockEnd,
+    skipToNextLine,
+    insertMissingToken
+  ];
+  
+  for (const strategy of strategies) {
+    const result = strategy(context, grammar, input);
+    if (result.success) return result;
+  }
+  
+  return { success: false, error };
+}
+
+// 3. Error Reporting
+function formatError(error: GrammarError, input: string): string {
+  const lines = input.split('\n');
+  const line = lines[error.position.line];
+  const column = error.position.column;
+  
+  return `
+Error at line ${error.position.line}, column ${column}:
+${line}
+${' '.repeat(column)}^
+${error.message}
+Expected: ${error.context.expected}
+Found: ${error.context.found}
+  `.trim();
+}
+```
+
 ---
 
 ## 17. Idioms from the Wild
@@ -808,3 +1478,97 @@ Happy grammar writing! For more inspiration, explore the grammars in `/grammars`
 **Q: How do I test and validate my grammar incrementally?**
 - Write tests for individual rules, not just the root rule.
 - Use `m.parse(g.rule, input)` and inspect the AST.
+
+**Q: How do I handle unterminated strings or comments?**
+- Define separate rules for valid and unterminated tokens
+- Use `m.assert(m.end)` to detect unterminated tokens
+- Include error rules in a separate `error` rule
+- Use `m.not(errorRule)` in the file rule to fail on errors
+- See JavaScript tokens grammar for a complete example
+
+**Q: Why does my parser hang on invalid input?**
+- Check for proper error handling in your grammar
+- Ensure unterminated tokens are properly detected
+- Use `m.assert()` and `m.not()` to guard against infinite loops
+- Consider using `m.fail()` for explicit error cases
+
+**Q: How do I test my grammar systematically?**
+- Use `RuleTesterVitest` for systematic rule testing
+- Test both valid and invalid inputs
+- Include edge cases and error cases
+- Test individual rules in isolation
+- Use integration tests for complex scenarios
+
+**Q: How do I handle escape sequences in strings?**
+- Define a separate `escape` rule for all valid escape sequences
+- Include both simple escapes (`\n`, `\t`, etc.) and Unicode escapes
+- Use `m.choice()` to combine different escape types
+- Test with various escape sequence combinations
+
+**Q: What's the best way to handle error recovery?**
+- Choose between fail-fast and error collection strategies
+- Use synchronization points for error recovery
+- Consider using `m.advanceUntilPast()` for recovery
+- Test error recovery with various invalid inputs
+
+**Q: How do I prevent infinite loops in my grammar?**
+- Always ensure progress is made (consume at least one character)
+- Use `m.assert()` and `m.not()` to guard against infinite loops
+- Test with unterminated tokens and malformed input
+- Consider using defensive patterns like `m.advance` as fallback
+
+**Q: How do I optimize my grammar for performance?**
+- Use rule caching for frequently used rules
+- Implement early termination where possible
+- Use lookahead to avoid unnecessary backtracking
+- Profile with real-world inputs
+- Consider using `m.cache()` for expensive rules
+
+**Q: How do I handle complex context-sensitive parsing?**
+- Use lookahead with `m.assert()`
+- Implement custom error reporting
+- Use context objects to track state
+- Consider using semantic actions
+- Test with edge cases
+
+**Q: How do I debug complex grammar issues?**
+- Use rule tracing to see matching process
+- Visualize grammar structure
+- Implement custom error reporting
+- Use property-based testing
+- Profile performance with large inputs
+
+**Q: How do I maintain large grammars?**
+- Use modular composition
+- Implement systematic testing
+- Document complex rules
+- Use consistent patterns
+- Consider using grammar visualization tools
+
+**Q: How do I handle complex language features?**
+- Break down complex features into smaller rules
+- Use context objects to track state
+- Implement proper error recovery
+- Test with real-world examples
+- Consider using semantic actions
+
+**Q: How do I optimize my grammar for large inputs?**
+- Use rule memoization
+- Implement early exit strategies
+- Profile and optimize hot paths
+- Consider using lazy evaluation
+- Test with performance benchmarks
+
+**Q: How do I maintain and evolve my grammar?**
+- Use systematic testing
+- Document rule dependencies
+- Implement grammar visualization
+- Track grammar metrics
+- Use version control for grammar changes
+
+**Q: How do I handle language evolution?**
+- Design for extensibility
+- Use modular composition
+- Implement backward compatibility
+- Test with old and new syntax
+- Document breaking changes
